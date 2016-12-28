@@ -371,7 +371,7 @@ func Warn(v ...interface{}) {
 
 func Errorf(format string, v ...interface{}) {
 	if Lerror&Std.flag != 0 {
-		Std.Output(Lerror, 2, fmt.Sprintf(format, v...)+"\n"+CallerStack())
+		Std.Output(Lerror, 2, fmt.Sprintf(format, v...)+CallerStack())
 	}
 }
 
@@ -382,14 +382,12 @@ func Error(v ...interface{}) {
 }
 
 func Fatalf(format string, v ...interface{}) {
-	Std.Output(Lfatal, 2, fmt.Sprintf(format, v...))
-	Std.Output(Lfatal, 2, CallerStack())
+	Std.Output(Lfatal, 2, fmt.Sprintf(format, v...)+CallerStack())
 	os.Exit(1)
 }
 
 func Fatal(v ...interface{}) {
-	Std.Output(Lfatal, 2, fmt.Sprintf(smartFormat(v...), v...))
-	Std.Output(Lfatal, 2, CallerStack())
+	Std.Output(Lfatal, 2, fmt.Sprintf(smartFormat(v...), v...)+CallerStack())
 	os.Exit(1)
 }
 

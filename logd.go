@@ -18,20 +18,29 @@ const (
 	Lwarn                     //
 	Lerror                    //
 	Lfatal                    //
-	LAsync                    // 异步输出日志
-	Ldate                     // like 2006/01/02
-	Ltime                     // like 15:04:05
-	Lmicroseconds             // like 15:04:05.123123
-	Llongfile                 // like /a/b/c/d.go:23
-	Lshortfile                // like d.go:23
+	Ldate                     // 如：2006/01/02
+	Ltime                     // 如：15:04:05
+	Lmicroseconds             // 如：15:04:05.123123
+	Llongfile                 // 如：/a/b/c/d.go:23
+	Lshortfile                // 如：d.go:23
 	LUTC                      // 时间utc输出
-	Ldaily                    //
+	LAsync                    // 异步输出日志
+	LDaily                    // 按日归档，保留30天
+	LHourly                   // 按小时归档，保留2天
+	LMinutely                 // 按分钟归档，保留1小时
 
+	//
+	// 建议标准格式为: LVEVL | FORMAT | ROTATE | ASYNC
+	//
 	Lall = Ldebug | Linfo | Lwarn | Lerror | Lfatal
-	// 2006/01/02 15:04:05.123123, /a/b/c/d.go:23
-	LstdFlags = Ldate | Lmicroseconds | Lshortfile | Lall
+
+	// 2006/01/02 15:04:05.123123, d.go:23
+	LstdFlags = Lall | Ldate | Lmicroseconds | Lshortfile
+	// 2006/01/02 15:04:05, d.go:23
+	LwarnFlags = Lwarn | Lerror | Lfatal | Ldate | Ltime | Lshortfile | LDaily | LAsync
 )
 
+// 等级显示字符串
 var levelMaps = map[int]string{
 	Ldebug: "DEBUG",
 	Linfo:  "INFO",
@@ -40,6 +49,7 @@ var levelMaps = map[int]string{
 	Lfatal: "FATAL",
 }
 
+// 日志结构体
 type Logger struct {
 	mu    sync.Mutex
 	obj   string      // 打印日志对象
@@ -50,14 +60,16 @@ type Logger struct {
 	mails Emailer     // 告警邮件
 }
 
+// 日志配置项
 type LogOption struct {
 	Out        io.Writer // 输出writer
-	LogDir     string    // 日志输出目录,，为空不输出到文件
+	LogDir     string    // 日志输出目录,为空不输出到文件
 	ChannelLen int       // channel
 	Flag       int       // 标志位
 	Mails      Emailer   // 告警邮件
 }
 
+// 新建日志打印器
 func New(option LogOption) *Logger {
 	wd, _ := os.Getwd()
 	index := strings.LastIndex(wd, "/")
@@ -88,7 +100,7 @@ func (l *Logger) receive() {
 				panic(err)
 			}
 			l.mu.Unlock()
-			if l.flag&Ldaily != 0 {
+			if l.flag&LDaily != 0 {
 				go l.rotate(today)
 			}
 		}
@@ -125,7 +137,7 @@ func (l *Logger) rotate(t time.Time) {
 	})
 }
 
-// log format: date, time(hour:minute:second:microsecond), level, module, shortfile:line, <content>
+// 日志基本格式: date, time(hour:minute:second:microsecond), level, module, shortfile:line, <content>
 func (l *Logger) Output(lvl int, calldepth int, content string) error {
 	_, file, line, ok := runtime.Caller(calldepth)
 	if !ok {
@@ -137,8 +149,10 @@ func (l *Logger) Output(lvl int, calldepth int, content string) error {
 	buf = append(buf, content...)
 
 	if l.mails != nil && lvl >= Lwarn {
-		go l.mails.SendMail(buf)
+		go l.mails.SendMail(l.obj, buf)
 	}
+
+	// 异步输出
 	if l.flag&LAsync != 0 {
 		l.in <- buf
 	} else {
@@ -150,6 +164,7 @@ func (l *Logger) Output(lvl int, calldepth int, content string) error {
 	return nil
 }
 
+// 整理日志header
 func (l *Logger) formatHeader(buf *[]byte, lvl int, t time.Time, file string, line int) {
 	if l.flag&LUTC != 0 {
 		t = t.UTC()
@@ -198,6 +213,7 @@ func (l *Logger) formatHeader(buf *[]byte, lvl int, t time.Time, file string, li
 	}
 }
 
+// 等待flush channel
 func (l *Logger) WaitFlush() {
 	for {
 		if len(l.in) > 0 {
@@ -284,24 +300,28 @@ func (l *Logger) Breakpoint() {
 	l.Output(Ldebug, 3, fmt.Sprintln("breakpoint"))
 }
 
+// 设置日志目录
 func (l *Logger) SetLogDir(dir string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.dir = dir
 }
 
+// 设置日志对象名称
 func (l *Logger) SetObj(obj string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.obj = obj
 }
 
+// 改变日志输出writer
 func (l *Logger) SetOutput(out io.Writer) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.out = out
 }
 
+// 设置日志等级
 func (l *Logger) SetLevel(lvl int) {
 	l.mu.Lock()
 	defer l.mu.Unlock()

@@ -8,20 +8,19 @@ import (
 )
 
 type Emailer interface {
-	SendMail(msg []byte) error
+	SendMail(fromname string, msg []byte) error
 }
 
 type Smtp struct {
-	From     string   // 发件箱：number@qq.com
-	FromName string   // 发件人名：xiaoming
-	Key      string   // 发件密钥：peerdmnoqirqbiaa
-	Host     string   // 主机地址：smtp.example.com
-	Port     string   // 主机端口：465
-	To       []string // 发送给：object@163.com
-	Subject  string   // 标题：警告邮件[goblog]
+	From    string   // 发件箱：number@qq.com
+	Key     string   // 发件密钥：peerdmnoqirqbiaa
+	Host    string   // 主机地址：smtp.example.com
+	Port    string   // 主机端口：465
+	To      []string // 发送给：object@163.com
+	Subject string   // 标题：警告邮件[goblog]
 }
 
-func (s *Smtp) SendMail(msg []byte) error {
+func (s *Smtp) SendMail(fromname string, msg []byte) error {
 	// 新建连接
 	conn, err := tls.Dial("tcp", s.Host+":"+s.Port, nil)
 	if err != nil {
@@ -48,7 +47,7 @@ func (s *Smtp) SendMail(msg []byte) error {
 	// 准备数据
 	str := fmt.Sprint(
 		"To:", strings.Join(s.To, ","),
-		"\r\nFrom:", fmt.Sprintf("%s<%s>", s.FromName, s.From),
+		"\r\nFrom:", fmt.Sprintf("%s<%s>", fromname, s.From),
 		"\r\nSubject:", s.Subject,
 		"\r\n", "Content-Type:text/plain;charset=UTF-8",
 		"\r\n\r\n",
@@ -57,7 +56,6 @@ func (s *Smtp) SendMail(msg []byte) error {
 	copy(data, []byte(str))
 	copy(data[len(str):], msg)
 
-	fmt.Println(string(data))
 	// RCPT
 	for _, d := range s.To {
 		if err := client.Rcpt(d); err != nil {

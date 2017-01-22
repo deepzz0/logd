@@ -7,54 +7,76 @@ import (
 	"strings"
 )
 
-var (
-	from     = "120735581@qq.com"
-	pass     = "peerdmnoqirqbiaa"
-	smtpHost = "smtp.qq.com"
-)
+type Emailer interface {
+	SendMail(msg []byte) error
+}
 
-func sendMail(subject string, body []byte, to []string) error {
-	auth := smtp.PlainAuth("", from, pass, smtpHost)
+type Smtp struct {
+	From     string   // 发件箱：number@qq.com
+	FromName string   // 发件人名：xiaoming
+	Key      string   // 发件密钥：peerdmnoqirqbiaa
+	Host     string   // 主机地址：smtp.example.com
+	Port     string   // 主机端口：465
+	To       []string // 发送给：object@163.com
+	Subject  string   // 标题：警告邮件[goblog]
+}
 
-	conn, err := tls.Dial("tcp", smtpHost+":465", nil)
+func (s *Smtp) SendMail(msg []byte) error {
+	// 新建连接
+	conn, err := tls.Dial("tcp", s.Host+":"+s.Port, nil)
 	if err != nil {
 		return err
 	}
-	client, err := smtp.NewClient(conn, smtpHost)
+
+	// 新建客户端
+	client, err := smtp.NewClient(conn, s.Host)
 	if err != nil {
 		return err
 	}
+
+	// 获取授权
+	auth := smtp.PlainAuth("", s.From, s.Key, s.Host)
 	if err = client.Auth(auth); err != nil {
 		return err
 	}
-	if err = client.Mail(from); err != nil {
+
+	// 向服务器发送MAIL命令
+	if err = client.Mail(s.From); err != nil {
 		return err
 	}
 
-	contentType := "Content-Type:text/plain;charset=UTF-8"
-	var msg []byte
+	// 准备数据
 	str := fmt.Sprint(
-		"To:", strings.Join(to, ";"),
-		"\r\nFrom:", from,
-		"\r\nSubject:", subject,
-		"\r\n", contentType,
+		"To:", strings.Join(s.To, ","),
+		"\r\nFrom:", fmt.Sprintf("%s<%s>", s.FromName, s.From),
+		"\r\nSubject:", s.Subject,
+		"\r\n", "Content-Type:text/plain;charset=UTF-8",
 		"\r\n\r\n",
 	)
-	msg = append(msg, str...)
-	msg = append(msg, body...)
-	for _, addr := range to {
-		if err := client.Rcpt(addr); err != nil {
+	data := make([]byte, len(str)+len(msg))
+	copy(data, []byte(str))
+	copy(data[len(str):], msg)
+
+	fmt.Println(string(data))
+	// RCPT
+	for _, d := range s.To {
+		if err := client.Rcpt(d); err != nil {
 			return err
 		}
 	}
-	writer, err := client.Data()
+
+	// 获取WriteCloser
+	wc, err := client.Data()
 	if err != nil {
 		return err
 	}
-	_, err = writer.Write(msg)
+
+	// 写入数据
+	_, err = wc.Write(data)
 	if err != nil {
 		return err
 	}
-	writer.Close()
-	return nil
+	wc.Close()
+
+	return client.Quit()
 }

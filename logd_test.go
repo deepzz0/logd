@@ -1,35 +1,35 @@
 package logd
 
 import (
-	logg "log"
+	"log"
 	"os"
 	"testing"
 )
 
 func TestLog(t *testing.T) {
-	Printf("Print: foo\n")
+	Printf("Printf: foo\n")
 	Print("Print: foo")
 
 	SetLevel(Ldebug)
 
-	Debugf("Debug: foo\n")
+	Debugf("Debugf: foo\n")
 	Debug("Debug: foo")
 
-	Infof("Info: foo\n")
+	Infof("Infof: foo\n")
 	Info("Info: foo")
 
-	Errorf("Error: foo")
+	Errorf("Errorf: foo\n")
 	Error("Error: foo")
 
 	SetLevel(Lerror)
 
-	Debugf("Debug: foo\n")
+	Debugf("Debugf: foo\n")
 	Debug("Debug: foo")
 
-	Infof("Info: foo\n")
+	Infof("Infof: foo\n")
 	Info("Info: foo")
 
-	Errorf("Error: foo")
+	Errorf("Errorf: foo\n")
 	Error("Error: foo")
 }
 
@@ -63,7 +63,7 @@ func BenchmarkLogFile(b *testing.B) {
 
 func BenchmarkStandardFile(b *testing.B) {
 	f, _ := os.OpenFile("testdata/logfile.log", os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
-	log := logg.New(f, "", logg.LstdFlags)
+	log := log.New(f, "", log.LstdFlags)
 	for i := 0; i < b.N; i++ {
 		log.Print("testing this is a testing about benchmark")
 	}
@@ -99,7 +99,7 @@ func BenchmarkLogFileMillion(b *testing.B) {
 
 func BenchmarkStandardFileMillion(b *testing.B) {
 	f, _ := os.OpenFile("testdata/logfilemillion.log", os.O_CREATE|os.O_RDWR|os.O_APPEND, 0666)
-	log := logg.New(f, "", logg.LstdFlags)
+	log := log.New(f, "", log.LstdFlags)
 	b.N = 1000000
 	for i := 0; i < b.N; i++ {
 		log.Print("testing this is a testing about benchmark")

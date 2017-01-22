@@ -41,13 +41,13 @@ var levelMaps = map[int]string{
 }
 
 type Logger struct {
-	mu     sync.Mutex
-	obj    string      // 打印日志对象
-	out    io.Writer   // 输出
-	in     chan []byte // channel
-	dir    string      // 输出目录
-	flag   int         // 标志
-	emails []string    // 告警邮件
+	mu    sync.Mutex
+	obj   string      // 打印日志对象
+	out   io.Writer   // 输出
+	in    chan []byte // channel
+	dir   string      // 输出目录
+	flag  int         // 标志
+	mails Emailer     // 告警邮件
 }
 
 type LogOption struct {
@@ -55,19 +55,19 @@ type LogOption struct {
 	LogDir     string    // 日志输出目录,，为空不输出到文件
 	ChannelLen int       // channel
 	Flag       int       // 标志位
-	Emails     []string  // 告警邮件
+	Mails      Emailer   // 告警邮件
 }
 
 func New(option LogOption) *Logger {
 	wd, _ := os.Getwd()
 	index := strings.LastIndex(wd, "/")
 	logger := &Logger{
-		obj:    wd[index+1:],
-		out:    option.Out,
-		in:     make(chan []byte, option.ChannelLen),
-		dir:    option.LogDir,
-		flag:   option.Flag,
-		emails: option.Emails,
+		obj:   wd[index+1:],
+		out:   option.Out,
+		in:    make(chan []byte, option.ChannelLen),
+		dir:   option.LogDir,
+		flag:  option.Flag,
+		mails: option.Mails,
 	}
 	if logger.flag|LAsync != 0 {
 		go logger.receive()
@@ -136,8 +136,8 @@ func (l *Logger) Output(lvl int, calldepth int, content string) error {
 	l.formatHeader(&buf, lvl, time.Now(), file, line)
 	buf = append(buf, content...)
 
-	if len(l.emails) > 0 && lvl >= Lwarn {
-		go sendMail(l.obj, buf, l.emails)
+	if l.mails != nil && lvl >= Lwarn {
+		go l.mails.SendMail(buf)
 	}
 	if l.flag&LAsync != 0 {
 		l.in <- buf
@@ -316,12 +316,6 @@ func (l *Logger) SetLevel(lvl int) {
 	l.flag <<= i
 }
 
-func (l *Logger) SetEmail(v string) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.emails = append(l.emails, v)
-}
-
 // standard wrapper
 var Std = New(LogOption{Out: os.Stdout, ChannelLen: 1000, Flag: LstdFlags})
 
@@ -401,10 +395,6 @@ func SetLevel(lvl int) {
 
 func SetOutput(w io.Writer) {
 	Std.SetOutput(w)
-}
-
-func SetEmail(email string) {
-	Std.SetEmail(email)
 }
 
 func SetObj(obj string) {

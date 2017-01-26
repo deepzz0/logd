@@ -26,8 +26,6 @@ const (
 	LUTC                      // 时间utc输出
 	LAsync                    // 异步输出日志
 	LDaily                    // 按日归档，保留30天
-	LHourly                   // 按小时归档，保留2天
-	LMinutely                 // 按分钟归档，保留1小时
 
 	//
 	// 建议标准格式为: LVEVL | FORMAT | ROTATE | ASYNC
@@ -337,7 +335,7 @@ func (l *Logger) SetLevel(lvl int) {
 }
 
 // standard wrapper
-var Std = New(LogOption{Out: os.Stdout, ChannelLen: 1000, Flag: LstdFlags})
+var Std = New(LogOption{Out: os.Stdout, Flag: LstdFlags})
 
 func Printf(format string, v ...interface{}) {
 	Std.Output(Linfo, 2, fmt.Sprintf(format, v...))

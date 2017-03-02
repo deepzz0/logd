@@ -207,7 +207,7 @@ func (l *Logger) formatHeader(buf *[]byte, lvl int, t time.Time, file string, li
 		*buf = append(*buf, file...)
 		*buf = append(*buf, ':')
 		itoa(buf, line, -1)
-		*buf = append(*buf, ": "...)
+		*buf = append(*buf, ":"...)
 	}
 }
 
@@ -423,7 +423,7 @@ func SetObj(obj string) {
 func smartFormat(v ...interface{}) string {
 	format := ""
 	for i := 0; i < len(v); i++ {
-		format += "%v"
+		format += " %v"
 	}
 	format += "\n"
 	return format
